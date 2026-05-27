@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Renditerechner</title>
+    <!-- Tailwind CSS für erstklassiges Design -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons für moderne App-Symbole -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- html2pdf.js für erstklassigen PDF-Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        html {
+            -webkit-text-size-adjust: 100%; /* Verhindert ungewollten Text-Zoom auf iOS */
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #030712; /* Sehr dunkles Marine-Blau als Page-Hintergrund */
+            color: #ffffff;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .ios-card {
+            background: rgba(10, 25, 47, 0.85); /* Elegantes, tiefes Marine-Blau mit Transparenz */
+            /* iOS-Webkit Kompatibilität für den Weichzeichner (Milchglas-Effekt) */
+            -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(212, 175, 55, 0.15); /* Zarter Goldrand */
+        }
+        .transition-all-custom {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* iOS Webkit Fixes für Eingabefelder */
+        input[type=text] {
+            -webkit-appearance: none; /* Deaktiviert iOS-Standard-Styling */
+            appearance: none;
+            border-radius: 0;
+            background-color: transparent;
+            border: none;
+            outline: none;
+            width: 100%;
+        }
+
+        /* Flüssiges, elastisches Scrollen für iOS */
+        .scroll-container {
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Custom Styling für Range Slider mit edlem Gold-Akzent */
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: #172a45; /* Marine-Blau Kontrast */
+            border-radius: 3px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #d4af37; /* Gold */
+            border: 2px solid #ffffff;
+            cursor: pointer;
+            -webkit-appearance: none;
+            margin-top: -7px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+            transition: transform 0.1s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:active {
+            transform: scale(1.15);
+        }
+    </style>
+</head>
+<body class="flex justify-center items-center min-h-screen sm:p-6 bg-[#030712] overflow-x-hidden">
+
+    <!-- Adaptive Card: Auf Smartphones Fullscreen (h-screen/h-[100dvh]), auf Desktop schwebender Rahmen -->
+    <div class="w-full max-w-md ios-card sm:rounded-[40px] shadow-2xl overflow-hidden flex flex-col relative z-10 h-screen sm:h-[85vh] sm:max-h-[850px] sm:min-h-[660px]">
+        
+        <!-- App Header (Oben abgerundet mit dem AWP Marine-Gold Logo und rein goldenem Titel) -->
+        <div class="px-6 pt-6 pb-4 sm:pt-7 sm:pb-5 border-b border-blue-900/30 flex items-center justify-between flex-shrink-0">
+            <div class="flex items-center space-x-3.5">
+                <!-- AWP Logo in Marine-Blau und Gold -->
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-blue-950 to-[#0f1d3a] border border-[#d4af37]/40 flex items-center justify-center shadow-lg shadow-black/40 relative overflow-hidden flex-shrink-0">
+                    <!-- Gold-Schimmer-Effekt -->
+                    <div class="absolute inset-0 bg-gradient-to-tr from-transparent via-amber-500/10 to-transparent"></div>
+                    <span class="text-xs font-black tracking-wider text-[#d4af37] relative z-10 drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">AWP</span>
+                </div>
+                <div>
+                    <!-- Name komplett in Gold und ohne Unterzeile -->
+                    <h1 class="text-lg font-extrabold tracking-tight text-[#d4af37] drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">Renditerechner</h1>
+                </div>
+            </div>
+            <button id="btn-info" class="text-blue-200/60 hover:text-[#d4af37] transition-colors p-1" onclick="toggleInfoModal()">
+                <i data-lucide="help-circle" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <!-- iOS Segmented Control (Tab Switcher in Marine & Gold gehalten) -->
+        <div class="px-6 pt-4 flex-shrink-0">
+            <div class="bg-[#0a192f]/95 p-1 rounded-xl flex border border-blue-900/40">
+                <button id="tab-brutto" onclick="switchTab('brutto')" class="flex-1 py-2 text-xs font-bold rounded-lg transition-all-custom text-[#d4af37] bg-[#172a45] border border-[#d4af37]/20 shadow">
+                    Bruttomietrendite
+                </button>
+                <button id="tab-netto" onclick="switchTab('netto')" class="flex-1 py-2 text-xs font-semibold rounded-lg transition-all-custom text-slate-400 hover:text-white">
+                    Nettomietrendite
+                </button>
+            </div>
+        </div>
+
+        <!-- Scrollable Content mit iOS Scroll-Optimierung (ohne fehlerhaften WebKit-Mask-Filter) -->
+        <div class="flex-1 p-6 space-y-6 overflow-y-auto scroll-container">
+            
+            <!-- SEKTION 1: Basiseingaben -->
+            <div class="space-y-4">
+                <!-- Kaufpreis -->
+                <div class="space-y-1.5">
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-blue-200/60 pl-1">Reiner Kaufpreis</label>
+                    <div class="relative rounded-2xl bg-[#0a192f]/60 border border-blue-900/40 focus-within:border-[#d4af37]/60 transition-all-custom flex items-center px-4 py-3">
+                        <i data-lucide="euro" class="w-5 h-5 text-blue-300/40 mr-2.5"></i>
+                        <input type="text" id="kaufpreis" placeholder="Kaufpreis in €" class="w-full bg-transparent text-white text-base font-semibold focus:outline-none placeholder-blue-300/20" oninput="handleInputFormat(this)">
+                        <span class="text-xs text-[#d4af37] font-bold ml-2">EUR</span>
+                    </div>
+                </div>
+
+                <!-- Jahreskaltmiete -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between items-center pl-1">
+                        <label class="block text-[10px] font-bold uppercase tracking-wider text-blue-200/60">Jahreskaltmiete</label>
+                        <button onclick="toggleMonatshilfe()" class="text-[10px] text-[#d4af37] hover:text-[#f3c623] hover:underline font-semibold font-sans">Monatshilfe</button>
+                    </div>
+                    
+                    <div class="relative rounded-2xl bg-[#0a192f]/60 border border-blue-900/40 focus-within:border-[#d4af37]/60 transition-all-custom flex items-center px-4 py-3">
+                        <i data-lucide="home" class="w-5 h-5 text-blue-300/40 mr-2.5"></i>
+                        <input type="text" id="kaltmiete" placeholder="Jährliche Kaltmiete in €" class="w-full bg-transparent text-white text-base font-semibold focus:outline-none placeholder-blue-300/20" oninput="handleInputFormat(this)">
+                        <span class="text-xs text-[#d4af37] font-bold ml-2">EUR/J</span>
+                    </div>
+                </div>
+
+                <!-- Hilfsrechner Monatsmiete (Kollabierbar) -->
+                <div id="monatshilfe" class="hidden p-4 rounded-2xl bg-[#0a192f]/90 border border-blue-900/40 space-y-2.5">
+                    <span class="text-[11px] text-blue-200/70 font-medium">Berechne Jahresmiete aus der monatlichen Kaltmiete:</span>
+                    <div class="relative rounded-xl bg-black/40 border border-blue-900/50 flex items-center px-3 py-2">
+                        <input type="text" id="monatsmiete" placeholder="z.B. 800" class="w-full bg-transparent text-white text-sm focus:outline-none" oninput="handleInputFormat(this); berechneAusMonat()">
+                        <span class="text-xs text-[#d4af37] font-bold">€/Monat</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEKTION 2: Nettomietrendite-Spezifische Felder -->
+            <div id="netto-fields" class="hidden space-y-5 pt-2 border-t border-blue-900/30">
+                <h3 class="text-xs font-bold uppercase tracking-widest text-[#d4af37] pl-1">Kaufnebenkosten (KNK)</h3>
+                
+                <!-- Grunderwerbsteuer Slider -->
+                <div class="space-y-1.5 bg-[#0a192f]/30 p-3.5 rounded-2xl border border-blue-900/20">
+                    <div class="flex justify-between text-xs font-semibold">
+                        <span class="text-blue-100/80">Grunderwerbsteuer</span>
+                        <span id="label-steuer" class="text-[#d4af37]">5.0 %</span>
+                    </div>
+                    <input type="range" id="slider-steuer" min="3.5" max="6.5" step="0.5" value="5.0" oninput="updateSliders(); berechneRenditen()">
+                    <div class="flex justify-between text-[10px] text-blue-300/40">
+                        <span>Min (3.5%)</span>
+                        <span>Max (6.5%)</span>
+                    </div>
+                </div>
+
+                <!-- Notar & Grundbuch Slider -->
+                <div class="space-y-1.5 bg-[#0a192f]/30 p-3.5 rounded-2xl border border-blue-900/20">
+                    <div class="flex justify-between text-xs font-semibold">
+                        <span class="text-blue-100/80">Notar- & Grundbuchgebühren</span>
+                        <span id="label-notar" class="text-[#d4af37]">1.5 %</span>
+                    </div>
+                    <input type="range" id="slider-notar" min="1.0" max="2.5" step="0.1" value="1.5" oninput="updateSliders(); berechneRenditen()">
+                    <div class="flex justify-between text-[10px] text-blue-300/40">
+                        <span>Standard (1.5%)</span>
+                        <span>Max (2.5%)</span>
+                    </div>
+                </div>
+
+                <!-- Maklergebühr Slider mit verbesserter Präzision und Schnellauswahl -->
+                <div class="space-y-1.5 bg-[#0a192f]/30 p-3.5 rounded-2xl border border-blue-900/20">
+                    <div class="flex justify-between text-xs font-semibold">
+                        <span class="text-blue-100/80">Maklerprovision (Käufer)</span>
+                        <span id="label-makler" class="text-[#d4af37]">3.57 %</span>
+                    </div>
+                    <input type="range" id="slider-makler" min="0" max="7.14" step="0.01" value="3.57" oninput="updateSliders(); berechneRenditen()">
+                    <div class="flex justify-between text-[10px] text-blue-300/40">
+                        <button type="button" onclick="setMaklerPreset(0)" class="hover:text-white transition-colors">0% (Kein)</button>
+                        <button type="button" onclick="setMaklerPreset(3.57)" class="text-[#d4af37] font-semibold hover:text-[#f3c623] hover:underline transition-colors">3,57% (Geteilt)</button>
+                        <button type="button" onclick="setMaklerPreset(7.14)" class="hover:text-white transition-colors">7,14% (Voll)</button>
+                    </div>
+                </div>
+
+                <h3 class="text-xs font-bold uppercase tracking-widest text-[#d4af37] pl-1 pt-2">Laufende Kosten (pro Jahr)</h3>
+
+                <!-- Nicht umlegbare Bewirtschaftung -->
+                <div class="space-y-1.5">
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-blue-200/60 pl-1">Instandhaltung & Verwaltung</label>
+                    <div class="relative rounded-2xl bg-[#0a192f]/60 border border-blue-900/40 focus-within:border-[#d4af37]/60 transition-all-custom flex items-center px-4 py-3">
+                        <i data-lucide="wrench" class="w-5 h-5 text-blue-300/40 mr-2.5"></i>
+                        <input type="text" id="bewirtschaftung" placeholder="z.B. 1.200" class="w-full bg-transparent text-white text-base font-semibold focus:outline-none placeholder-blue-300/20" oninput="handleInputFormat(this)">
+                        <span class="text-xs text-[#d4af37] font-bold ml-2">EUR/J</span>
+                    </div>
+                    <span class="text-[10px] text-blue-300/50 pl-1 block">Hausverwaltung + kalkulatorische Instandhaltungsrücklage</span>
+                </div>
+            </div>
+
+            <!-- Dynamische Berechnungsvorschau für Nettomietrendite -->
+            <div id="netto-details-card" class="hidden rounded-2xl p-4 bg-[#0a192f]/50 border border-blue-900/30 text-xs space-y-2.5 text-blue-100/75">
+                <div class="flex justify-between">
+                    <span>Gesamte Anschaffungskosten:</span>
+                    <strong id="detail-gesamtpreis" class="text-white">-</strong>
+                </div>
+                <div class="flex justify-between">
+                    <span>Davon Kaufnebenkosten:</span>
+                    <span id="detail-knk-summe" class="text-blue-300/60">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Netto-Mieteinnahme (nach Kosten):</span>
+                    <span id="detail-netto-miete" class="text-[#d4af37] font-semibold">-</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Sticky Ergebnisanzeige unten im Premium Marine/Gold Look mit dynamischer Farbampel -->
+        <div class="p-6 bg-[#030712] border-t border-blue-950/80 space-y-4 flex-shrink-0">
+            <div id="ergebnis-card" class="rounded-3xl p-5 bg-gradient-to-b from-[#0a192f] to-[#050c1a] border border-blue-900/40 text-center space-y-3 shadow-lg transition-all duration-300">
+                <span id="rendite-typ-label" class="text-[10px] font-bold uppercase tracking-widest text-blue-300/40">Bruttomietrendite</span>
+                
+                <div>
+                    <span id="rendite-wert" class="text-5xl font-black text-blue-900/50 tracking-tight transition-all duration-300">
+                        0,00 %
+                    </span>
+                </div>
+
+                <div class="flex items-center justify-between w-full pt-2">
+                    <div id="bewertung-badge" class="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-blue-950/80 text-blue-300/60 transition-all duration-300 border border-transparent">
+                        <span id="bewertung-text">Werte eingeben</span>
+                    </div>
+                    <!-- Export Button in edlem Gold/Marine-Design -->
+                    <button id="btn-export-pdf" onclick="exportToPDF()" class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold bg-[#172a45] text-[#d4af37] border border-[#d4af37]/30 hover:bg-[#d4af37] hover:text-[#030712] transition-colors shadow">
+                        <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                        <span>PDF Export</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Home Indicator -->
+        <div class="py-2 flex justify-center items-center select-none bg-[#030712] flex-shrink-0">
+            <div class="w-28 h-1 bg-blue-900/40 rounded-full"></div>
+        </div>
+
+    </div>
+
+    <!-- Verstecktes Template für den professionellen PDF-Export: Absolut ausgelagert, stört kein iOS-Layout mehr -->
+    <div id="pdf-template" style="position: absolute; left: -9999px; top: -9999px; width: 210mm; display: none;">
+        <div style="font-family: Arial, sans-serif; color: #1e293b; padding: 40px; background-color: #ffffff; min-height: 297mm; width: 210mm; display: flex; flex-direction: column; justify-content: flex-start; gap: 0; box-sizing: border-box;">
+            
+            <!-- PDF Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0a192f; padding-bottom: 18px; margin-bottom: 24px;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <!-- AWP Logo -->
+                    <div style="width: 45px; height: 45px; background: #0a192f; border: 2px solid #d4af37; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                        <span style="font-size: 14px; font-weight: 900; color: #d4af37; letter-spacing: 1px;">AWP</span>
+                    </div>
+                    <div>
+                        <h1 style="font-size: 22px; font-weight: 800; color: #0a192f; margin: 0;">AWP Renditerechner</h1>
+                        <p style="font-size: 11px; color: #d4af37; text-transform: uppercase; letter-spacing: 1.5px; font-weight: bold; margin: 2px 0 0 0;">Anlage- & Mietwertprofi</p>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <p style="font-size: 11px; color: #64748b; margin: 0;">Erstellungsdatum:</p>
+                    <p id="pdf-date" style="font-size: 13px; font-weight: bold; color: #0a192f; margin: 2px 0 0 0;">-</p>
+                </div>
+            </div>
+
+            <!-- PDF Title & Einleitung -->
+            <div style="margin-bottom: 24px;">
+                <h2 style="font-size: 18px; font-weight: 700; color: #0a192f; margin: 0 0 8px 0;">Immobilien-Renditeanalyse</h2>
+                <p style="font-size: 12px; color: #475569; line-height: 1.6; margin: 0;">Nachfolgend finden Sie die detaillierte Berechnung der Mietrendite für Ihre Wunschimmobilie. Diese Aufstellung berücksichtigt alle eingegebenen Anschaffungs- und Betriebskosten zur Ermittlung einer verlässlichen Entscheidungsgrundlage.</p>
+            </div>
+
+            <!-- PDF Ergebnisse-Zusammenfassung Box -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px;">
+                <div style="border-right: 1px solid #e2e8f0; padding-right: 20px;">
+                    <span style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; letter-spacing: 1px;">Bruttomietrendite</span>
+                    <h3 id="pdf-brutto-wert" style="font-size: 26px; font-weight: 800; color: #0f172a; margin: 5px 0 0 0;">- %</h3>
+                    <p style="font-size: 11px; color: #64748b; margin: 5px 0 0 0; line-height: 1.4;">Basiert auf dem reinen Kaufpreis und der Jahreskaltmiete.</p>
+                </div>
+                <div style="padding-left: 10px;">
+                    <span style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #0a192f; letter-spacing: 1px;">Nettomietrendite (Realwert)</span>
+                    <h3 id="pdf-netto-wert" style="font-size: 26px; font-weight: 800; color: #0a192f; margin: 5px 0 0 0;">- %</h3>
+                    <p style="font-size: 11px; color: #64748b; margin: 5px 0 0 0; line-height: 1.4;">Berücksichtigt Kaufnebenkosten und nicht umlegbare Betriebskosten.</p>
+                </div>
+            </div>
+
+            <!-- PDF Detail-Tabelle -->
+            <div style="margin-bottom: 28px;">
+                <h3 style="font-size: 14px; font-weight: bold; color: #0a192f; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin: 0 0 14px 0;">Detaillierte Berechnungsparameter</h3>
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                    <thead>
+                        <tr style="background-color: #0a192f; color: #ffffff; text-align: left;">
+                            <th style="padding: 10px 12px; border-top-left-radius: 6px; border-bottom-left-radius: 6px;">Parameter</th>
+                            <th style="padding: 10px 12px; text-align: right; border-top-right-radius: 6px; border-bottom-right-radius: 6px;">Wert</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 10px 12px; font-weight: bold; color: #334155;">Reiner Kaufpreis</td>
+                            <td id="pdf-tbl-kaufpreis" style="padding: 10px 12px; text-align: right; font-weight: bold; color: #0f172a;">- €</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 10px 12px; color: #475569;">Grunderwerbsteuer</td>
+                            <td id="pdf-tbl-steuer" style="padding: 10px 12px; text-align: right; color: #334155;">-</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 10px 12px; color: #475569;">Notar- & Grundbuchkosten</td>
+                            <td id="pdf-tbl-notar" style="padding: 10px 12px; text-align: right; color: #334155;">-</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 10px 12px; color: #475569;">Maklerprovision (Käufer)</td>
+                            <td id="pdf-tbl-makler" style="padding: 10px 12px; text-align: right; color: #334155;">-</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #f1f5f9; background-color: #f8fafc;">
+                            <td style="padding: 10px 12px; font-weight: bold; color: #0a192f;">Gesamte Anschaffungskosten</td>
+                            <td id="pdf-tbl-gesamtpreis" style="padding: 10px 12px; text-align: right; font-weight: bold; color: #0a192f;">- €</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 10px 12px; font-weight: bold; color: #334155;">Jahreskaltmiete (Soll)</td>
+                            <td id="pdf-tbl-kaltmiete" style="padding: 10px 12px; text-align: right; font-weight: bold; color: #0f172a;">- €</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 10px 12px; color: #475569;">Instandhaltung & Verwaltung (jährlich)</td>
+                            <td id="pdf-tbl-bewirtschaftung" style="padding: 10px 12px; text-align: right; color: #334155;">- €</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #f1f5f9; background-color: #f8fafc;">
+                            <td style="padding: 10px 12px; font-weight: bold; color: #0a192f;">Netto-Mieteinnahme nach Kosten</td>
+                            <td id="pdf-tbl-nettomiete" style="padding: 10px 12px; text-align: right; font-weight: bold; color: #0a192f;">- €</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- PDF Erklärungen und Formeln -->
+            <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 35px;">
+                <div>
+                    <h4 style="font-size: 11px; font-weight: bold; text-transform: uppercase; color: #0a192f; margin: 0 0 5px 0;">Bruttorendite-Formel</h4>
+                    <p style="font-size: 10px; color: #64748b; font-family: monospace; background: #f8fafc; padding: 6px; border-radius: 4px; margin: 0;">Jahreskaltmiete / Kaufpreis * 100</p>
+                </div>
+                <div>
+                    <h4 style="font-size: 11px; font-weight: bold; text-transform: uppercase; color: #0a192f; margin: 0 0 5px 0;">Nettorendite-Formel</h4>
+                    <p style="font-size: 10px; color: #64748b; font-family: monospace; background: #f8fafc; padding: 6px; border-radius: 4px; margin: 0;">(Kaltmiete - laufende Kosten) / (Kaufpreis + Nebenkosten) * 100</p>
+                </div>
+            </div>
+
+            <!-- PDF Footer mit Unterschriftenfeld -->
+            <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end;">
+                <div>
+                    <p style="font-size: 9px; color: #94a3b8; margin: 0;">AWP Renditerechner - Ein Service von Ihrem Anlage- & Mietwertprofi.</p>
+                    <p style="font-size: 9px; color: #94a3b8; margin: 2px 0 0 0;">Die Angaben dienen der Orientierung. Keine steuerliche oder rechtliche Beratung.</p>
+                </div>
+                <div style="text-align: right; width: 150px;">
+                    <div style="border-bottom: 1px solid #cbd5e1; height: 35px; margin-bottom: 4px;"></div>
+                    <p style="font-size: 9px; color: #94a3b8; margin: 0; text-align: center;">Kunde / Berater</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Info Modal -->
+    <div id="info-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex justify-center items-center p-4 hidden">
+        <div class="ios-card w-full max-w-sm rounded-[32px] p-6 border border-[#d4af37]/30 space-y-4">
+            <div class="w-12 h-12 rounded-full bg-[#d4af37]/10 flex items-center justify-center text-[#d4af37] mx-auto border border-[#d4af37]/20">
+                <i data-lucide="info" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-base font-bold text-center text-[#d4af37]">Formeln einfach erklärt</h3>
+            <div class="text-xs text-blue-100/80 space-y-3 leading-relaxed">
+                <div>
+                    <h4 class="font-bold text-white mb-0.5">Bruttomietrendite</h4>
+                    <p>Wird herangezogen für den schnellen, groben Marktvergleich.</p>
+                    <code class="block bg-[#050c1a] border border-blue-900/40 p-1.5 rounded text-[#d4af37] mt-1 font-mono text-[10px] text-center">Jahreskaltmiete / Kaufpreis * 100</code>
+                </div>
+                <div class="border-t border-blue-900/40 pt-2">
+                    <h4 class="font-bold text-white mb-0.5">Nettomietrendite</h4>
+                    <p>Ist wesentlich realistischer, da sie alle versteckten Nebenkosten berücksichtigt.</p>
+                    <code class="block bg-[#050c1a] border border-blue-900/40 p-1.5 rounded text-[#d4af37] mt-1 font-mono text-[10px] text-center">(Kaltmiete - laufende Kosten) / (Kaufpreis + Nebenkosten) * 100</code>
+                </div>
+            </div>
+            <button onclick="toggleInfoModal()" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-600 to-[#d4af37] hover:from-[#d4af37] hover:to-amber-500 text-[#030712] text-xs font-black transition-all-custom shadow-lg shadow-amber-500/10">
+                Verstanden
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Lucide Icons initialisieren
+        lucide.createIcons();
+
+        // Aktueller Tab-Zustand ('brutto' oder 'netto')
+        let currentTab = 'brutto';
+
+        // Funktion zum Bereinigen und Formatieren der Eingabe mit Tausenderpunkten
+        function formatNumberWithDots(val) {
+            let clean = val.replace(/\D/g, "");
+            if (!clean) return "";
+            return parseInt(clean, 10).toLocaleString("de-DE");
+        }
+
+        // Hilfsfunktion, um den echten numerischen Wert für Rechnungen zu extrahieren
+        function getNumericValue(elementId) {
+            const val = document.getElementById(elementId).value;
+            const clean = val.replace(/\./g, "");
+            return parseFloat(clean) || 0;
+        }
+
+        // Steuert die Formatierung des Inputs während des Tippens und führt die Berechnung aus
+        function handleInputFormat(inputElement) {
+            const selectionStart = inputElement.selectionStart;
+            const previousLength = inputElement.value.length;
+
+            const formatted = formatNumberWithDots(inputElement.value);
+            inputElement.value = formatted;
+
+            const lengthDiff = formatted.length - previousLength;
+            inputElement.setSelectionRange(selectionStart + lengthDiff, selectionStart + lengthDiff);
+
+            berechneRenditen();
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            const tabBrutto = document.getElementById('tab-brutto');
+            const tabNetto = document.getElementById('tab-netto');
+            const nettoFields = document.getElementById('netto-fields');
+            const nettoDetails = document.getElementById('netto-details-card');
+            const renditeTypLabel = document.getElementById('rendite-typ-label');
+
+            if (tab === 'brutto') {
+                tabBrutto.className = "flex-1 py-2 text-xs font-bold rounded-lg transition-all-custom text-[#d4af37] bg-[#172a45] border border-[#d4af37]/20 shadow";
+                tabNetto.className = "flex-1 py-2 text-xs font-semibold rounded-lg transition-all-custom text-slate-400 hover:text-white";
+                nettoFields.classList.add('hidden');
+                nettoDetails.classList.add('hidden');
+                renditeTypLabel.textContent = "Bruttomietrendite";
+            } else {
+                tabNetto.className = "flex-1 py-2 text-xs font-bold rounded-lg transition-all-custom text-[#d4af37] bg-[#172a45] border border-[#d4af37]/20 shadow";
+                tabBrutto.className = "flex-1 py-2 text-xs font-semibold rounded-lg transition-all-custom text-slate-400 hover:text-white";
+                nettoFields.classList.remove('hidden');
+                nettoDetails.classList.remove('hidden');
+                renditeTypLabel.textContent = "Nettomietrendite";
+            }
+            berechneRenditen();
+        }
+
+        function toggleMonatshilfe() {
+            document.getElementById('monatshilfe').classList.toggle('hidden');
+        }
+
+        function berechneAusMonat() {
+            const monat = getNumericValue('monatsmiete');
+            if (monat > 0) {
+                const jahresMiete = Math.round(monat * 12);
+                const kaltmieteInput = document.getElementById('kaltmiete');
+                kaltmieteInput.value = formatNumberWithDots(String(jahresMiete));
+                berechneRenditen();
+            }
+        }
+
+        // Setzt vordefinierte Werte für den Makler-Slider (z.B. bei Klick auf Preset-Buttons)
+        function setMaklerPreset(val) {
+            const slider = document.getElementById('slider-makler');
+            slider.value = val;
+            updateSliders();
+            berechneRenditen();
+        }
+
+        function updateSliders() {
+            const steuer = parseFloat(document.getElementById('slider-steuer').value);
+            const notar = parseFloat(document.getElementById('slider-notar').value);
+            const makler = parseFloat(document.getElementById('slider-makler').value);
+
+            document.getElementById('label-steuer').textContent = steuer.toFixed(1) + ' %';
+            document.getElementById('label-notar').textContent = notar.toFixed(1) + ' %';
+            document.getElementById('label-makler').textContent = makler.toFixed(2) + ' %';
+        }
+
+        function berechneRenditen() {
+            const kaufpreis = getNumericValue('kaufpreis');
+            const kaltmiete = getNumericValue('kaltmiete');
+            const bewirtschaftung = getNumericValue('bewirtschaftung');
+
+            const renditeWert = document.getElementById('rendite-wert');
+            const bewertungBadge = document.getElementById('bewertung-badge');
+            const bewertungText = document.getElementById('bewertung-text');
+            const ergebnisCard = document.getElementById('ergebnis-card');
+
+            if (kaufpreis <= 0 || kaltmiete <= 0) {
+                renditeWert.textContent = '0,00 %';
+                renditeWert.className = "text-5xl font-black text-blue-900/50 tracking-tight transition-all duration-300";
+                bewertungBadge.className = "inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-blue-950/80 text-blue-300/60 mx-auto border border-transparent";
+                bewertungText.textContent = "Werte eingeben";
+                ergebnisCard.style.borderColor = "rgba(30, 58, 138, 0.3)";
+                
+                document.getElementById('detail-gesamtpreis').textContent = "-";
+                document.getElementById('detail-knk-summe').textContent = "-";
+                document.getElementById('detail-netto-miete').textContent = "-";
+                return;
+            }
+
+            let berechneteRendite = 0;
+
+            if (currentTab === 'brutto') {
+                berechneteRendite = (kaltmiete / kaufpreis) * 100;
+            } else {
+                const steuerProzent = parseFloat(document.getElementById('slider-steuer').value) / 100;
+                const notarProzent = parseFloat(document.getElementById('slider-notar').value) / 100;
+                const maklerProzent = parseFloat(document.getElementById('slider-makler').value) / 100;
+
+                const knkSumme = kaufpreis * (steuerProzent + notarProzent + maklerProzent);
+                const gesamtAnschaffungskosten = kaufpreis + knkSumme;
+                const nettoMieteinnahmen = kaltmiete - bewirtschaftung;
+
+                if (gesamtAnschaffungskosten > 0) {
+                    berechneteRendite = (nettoMieteinnahmen / gesamtAnschaffungskosten) * 100;
+                }
+
+                document.getElementById('detail-gesamtpreis').textContent = Math.round(gesamtAnschaffungskosten).toLocaleString('de-DE') + ' €';
+                document.getElementById('detail-knk-summe').textContent = Math.round(knkSumme).toLocaleString('de-DE') + ' € (' + Math.round((steuerProzent+notarProzent+maklerProzent)*100) + '%)';
+                document.getElementById('detail-netto-miete').textContent = Math.max(0, Math.round(nettoMieteinnahmen)).toLocaleString('de-DE') + ' €/Jahr';
+            }
+
+            const anzeigeRendite = Math.max(0, berechneteRendite);
+
+            renditeWert.textContent = anzeigeRendite.toFixed(2).replace('.', ',') + ' %';
+            renditeWert.className = "text-5xl font-black text-transparent bg-clip-text transition-all duration-300 tracking-tight ";
+
+            const grenzwertNiedrig = (currentTab === 'brutto') ? 3.5 : 2.8;
+            const grenzwertHoch = (currentTab === 'brutto') ? 5.5 : 4.5;
+
+            // Farbliche und textuelle Bewertung der Rendite im klassischen Rot-Gelb-Grün-Look
+            if (anzeigeRendite < grenzwertNiedrig) {
+                // ROT (Niedrige Rendite)
+                renditeWert.classList.add("bg-gradient-to-r", "from-rose-500", "to-orange-500");
+                bewertungBadge.className = "inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-rose-500/10 text-rose-400 mx-auto border border-rose-500/20";
+                bewertungText.textContent = "Niedrige Rendite";
+                ergebnisCard.style.borderColor = "rgba(244, 63, 94, 0.3)";
+            } else if (anzeigeRendite >= grenzwertNiedrig && anzeigeRendite < grenzwertHoch) {
+                // GELB/ORANGE (Solide Rendite)
+                renditeWert.classList.add("bg-gradient-to-r", "from-amber-400", "to-yellow-500");
+                bewertungBadge.className = "inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-400 mx-auto border border-amber-500/20";
+                bewertungText.textContent = "Solide Rendite";
+                ergebnisCard.style.borderColor = "rgba(245, 158, 11, 0.3)";
+            } else {
+                // GRÜN (Hervorragende Rendite)
+                renditeWert.classList.add("bg-gradient-to-r", "from-emerald-400", "to-teal-400");
+                bewertungBadge.className = "inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 mx-auto border border-emerald-500/20";
+                bewertungText.textContent = "Sehr gute Rendite! 🔥";
+                ergebnisCard.style.borderColor = "rgba(16, 185, 129, 0.4)";
+            }
+        }
+
+        function toggleInfoModal() {
+            document.getElementById('info-modal').classList.toggle('hidden');
+        }
+
+        // Neue Funktion zur PDF-Erstellung und Befüllung des Templates
+        function exportToPDF() {
+            // Relevante Berechnungsdaten abgreifen
+            const kaufpreisNum = getNumericValue('kaufpreis');
+            const kaltmieteNum = getNumericValue('kaltmiete');
+
+            if (kaufpreisNum <= 0 || kaltmieteNum <= 0) {
+                console.log("Eingabe fehlt");
+                return;
+            }
+
+            const bewirtschaftungNum = getNumericValue('bewirtschaftung');
+            const steuerProzent = parseFloat(document.getElementById('slider-steuer').value);
+            const notarProzent = parseFloat(document.getElementById('slider-notar').value);
+            const maklerProzent = parseFloat(document.getElementById('slider-makler').value);
+
+            // Dynamische KNK-Berechnungen
+            const steuerEuro = kaufpreisNum * (steuerProzent / 100);
+            const notarEuro = kaufpreisNum * (notarProzent / 100);
+            const maklerEuro = kaufpreisNum * (maklerProzent / 100);
+            const knkGesamt = steuerEuro + notarEuro + maklerEuro;
+            const gesamtAnschaffung = kaufpreisNum + knkGesamt;
+            const nettomieteinnahme = kaltmieteNum - bewirtschaftungNum;
+
+            // Renditen berechnen
+            const bruttoRenditeVal = (kaltmieteNum / kaufpreisNum) * 100;
+            const nettoRenditeVal = gesamtAnschaffung > 0 ? (nettomieteinnahme / gesamtAnschaffung) * 100 : 0;
+
+            // Template-Werte befüllen
+            const heute = new Date();
+            const datumFormatiert = heute.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            document.getElementById('pdf-date').innerText = datumFormatiert;
+
+            document.getElementById('pdf-brutto-wert').innerText = bruttoRenditeVal.toFixed(2).replace('.', ',') + ' %';
+            document.getElementById('pdf-netto-wert').innerText = nettoRenditeVal.toFixed(2).replace('.', ',') + ' %';
+
+            document.getElementById('pdf-tbl-kaufpreis').innerText = kaufpreisNum.toLocaleString('de-DE') + ' €';
+            document.getElementById('pdf-tbl-steuer').innerText = steuerProzent.toFixed(1) + '% (' + Math.round(steuerEuro).toLocaleString('de-DE') + ' €)';
+            document.getElementById('pdf-tbl-notar').innerText = notarProzent.toFixed(1) + '% (' + Math.round(notarEuro).toLocaleString('de-DE') + ' €)';
+            document.getElementById('pdf-tbl-makler').innerText = maklerProzent.toFixed(2) + '% (' + Math.round(maklerEuro).toLocaleString('de-DE') + ' €)';
+            
+            document.getElementById('pdf-tbl-gesamtpreis').innerText = Math.round(gesamtAnschaffung).toLocaleString('de-DE') + ' €';
+            document.getElementById('pdf-tbl-kaltmiete').innerText = kaltmieteNum.toLocaleString('de-DE') + ' €';
+            document.getElementById('pdf-tbl-bewirtschaftung').innerText = bewirtschaftungNum.toLocaleString('de-DE') + ' €';
+            document.getElementById('pdf-tbl-nettomiete').innerText = Math.max(0, Math.round(nettomieteinnahme)).toLocaleString('de-DE') + ' €';
+
+            // PDF-Element holen
+            const element = document.getElementById('pdf-template');
+            
+            // Vorübergehend das Template sichtbar machen für html2pdf
+            element.style.display = 'block';
+
+            // html2pdf Optionen
+            const opt = {
+                margin:       0,
+                filename:     'AWP_Renditeanalyse_' + datumFormatiert.replace(/\./g, '_') + '.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, logging: false, letterRendering: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            // PDF generieren und herunterladen
+            html2pdf().from(element).set(opt).save().then(() => {
+                // Template nach Export wieder verstecken
+                element.style.display = 'none';
+            }).catch(err => {
+                console.error("PDF-Generierungsfehler: ", err);
+                element.style.display = 'none';
+            });
+        }
+
+        // Initiale Schieberegler-Labels updaten
+        updateSliders();
+    </script>
+</body>
+</html>
